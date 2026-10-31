@@ -65,7 +65,7 @@ const Subscribe = () => {
   const faqs = [
     { q: 'What happens when I subscribe?', a: 'Your account is instantly upgraded. The entire app transforms with a premium gold theme, and you get unlimited AI health consultations, priority scheduling, and VIP status visible to all doctors.' },
     { q: 'Can I cancel anytime?', a: 'Yes, you can cancel your subscription at any time from your Premium Perks page. You\'ll retain access until the end of your billing period.' },
-    { q: 'Is the AI assistant a real doctor?', a: 'No. The AI Health Assistant provides general health guidance, lifestyle tips, and medication information. It always recommends consulting a MediConnect doctor for formal diagnosis.' },
+    { q: 'Is the AI assistant a real doctor?', a: 'No. The AI Health Assistant provides general health guidance, lifestyle tips, and medication information. It always recommends consulting an AegisGlobal doctor for formal diagnosis.' },
     { q: 'What payment methods do you accept?', a: 'We accept all major credit/debit cards through our secure Stripe payment gateway. All transactions are encrypted and PCI-compliant.' },
     { q: 'Will I lose my data if I cancel?', a: 'No. All your appointments, prescriptions, medical records, and AI conversation history are retained even after cancellation.' },
   ];
@@ -143,7 +143,7 @@ const Subscribe = () => {
               <Sparkles className="h-3 w-3" /> Premium Healthcare
             </span>
             <h1 className="text-4xl md:text-6xl font-display font-bold text-[var(--text-primary)] mb-4">
-              Upgrade to <br /><span className="premium-gradient-text">MediConnect Premium</span>
+              Upgrade to <br /><span className="premium-gradient-text">AegisGlobal Horizon Premium</span>
             </h1>
             <p className="text-lg text-[var(--text-muted)] max-w-xl mx-auto">
               Unlock AI-powered health insights, priority scheduling, and an exclusive luxury experience.

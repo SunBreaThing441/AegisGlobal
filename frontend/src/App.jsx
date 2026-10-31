@@ -1,12 +1,13 @@
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { useContext } from 'react';
-import { AuthContext } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Layout Components
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import ChatBot from './components/ChatBot';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Page Components
 import Home from './pages/Home';
@@ -24,39 +25,13 @@ import Dashboard from './pages/Dashboard';
 import ActivityLog from './pages/ActivityLog';
 import WalletPage from './pages/Wallet';
 
-// Protected Route
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useContext(AuthContext);
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center gap-4">
-        <div className="relative w-12 h-12">
-          <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 animate-spin" />
-        </div>
-        <p className="text-sm font-medium text-[var(--text-muted)] animate-pulse">
-          Initializing...
-        </p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
-};
-
 // Page transition wrapper
 const PageWrapper = ({ children }) => (
   <motion.div
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0 }}
-    transition={{ duration: 0.3, ease: 'easeOut' }}
+    transition={{ duration: 0.25, ease: 'easeOut' }}
   >
     {children}
   </motion.div>
@@ -65,14 +40,14 @@ const PageWrapper = ({ children }) => (
 const AppContent = () => {
   const location = useLocation();
 
-  // Pages where we hide the Navbar
-  const hideNavbar = ['/login', '/register', '/forgot-password'].includes(location.pathname);
+  // Pages where we hide Navbar and Footer
+  const hideChrome = ['/login', '/register', '/forgot-password'].includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] transition-colors duration-500">
-      {!hideNavbar && <Navbar />}
+    <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col transition-colors duration-400">
+      {!hideChrome && <Navbar />}
 
-      <main className={!hideNavbar ? 'pt-[var(--nav-height)]' : ''}>
+      <main className={`flex-1 ${!hideChrome ? 'pt-[var(--nav-height)]' : ''}`}>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             {/* Public Routes */}
@@ -110,6 +85,9 @@ const AppContent = () => {
           </Routes>
         </AnimatePresence>
       </main>
+
+      {!hideChrome && <ChatBot />}
+      {!hideChrome && <Footer />}
     </div>
   );
 };

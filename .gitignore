@@ -7,6 +7,10 @@ coverage/
 package-lock.json
 package-lock.json
 
+# Local Database
+backend/data/
+**/pgdata/
+
 # Logs
 logs
 *.log

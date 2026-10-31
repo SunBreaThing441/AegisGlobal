@@ -1,272 +1,621 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { User, Mail, Phone, MapPin, Briefcase, IndianRupee, Clock, Calendar, Save, ChevronDown, X, AlertCircle, FileText, Activity, Shield } from 'lucide-react';
+import {
+  User, Mail, Phone, MapPin, Briefcase, IndianRupee, Clock,
+  Calendar, Save, ChevronDown, AlertCircle, FileText, Activity,
+  Shield, Heart, Droplets, AlertTriangle, Sparkles, Check, CheckCircle2,
+  Stethoscope, Building2
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../components/ui/GlassCard';
 import GradientText from '../components/ui/GradientText';
 import Modal from '../components/ui/Modal';
+import Badge from '../components/ui/Badge';
 
-const Profile = () => {
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+export const Profile = () => {
   const { user, updateUser } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
-  const [activeField, setActiveField] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [showUndertaking, setShowUndertaking] = useState(false);
 
   const isDoctor = user?.role === 'doctor';
-  const isPremium = user?.is_premium;
+  const isPatient = user?.role === 'patient';
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+  // Master Form Data
   const [formData, setFormData] = useState({
-    full_name: '', email: '', phone_number: '', specialization: '',
-    consultation_fee: '', availability: '', address: '', dob: '',
-    is_emergency: false
+    full_name: '',
+    email: '',
+    phone_number: '',
+    dob: '',
+    address: '',
+    // Doctor specific
+    specialization: '',
+    consultation_fee: '',
+    availability: '',
+    is_emergency: false,
+    // Patient specific Vitals & Emergency Contacts
+    blood_group: 'O+',
+    blood_pressure: '120/80',
+    heart_rate: '72',
+    allergies: 'None',
+    emergency_contact_name: '',
+    emergency_contact_relation: 'Spouse/Family',
+    emergency_contact_phone: ''
   });
 
-  const [schedule, setSchedule] = useState({ startDay: 'Mon', endDay: 'Fri', startTime: '09:00', endTime: '17:00' });
-  const backendUrl = import.meta.env.VITE_API_URL;
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
+  // Fetch Profile Data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem('token');
         const res = await axios.get(`${backendUrl}/api/users/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+
+        const data = res.data || {};
+        let addressStr = data.address || '';
+        let vitalsData = {};
+
+        // Check local storage for persistent vitals
+        const cachedVitals = localStorage.getItem(`patient_vitals_${user?.id}`);
+        if (cachedVitals) {
+          try {
+            vitalsData = JSON.parse(cachedVitals);
+          } catch (e) {
+            console.warn('Failed parsing cached vitals:', e);
+          }
+        }
+
+        // Parse address if serialized
+        let cleanAddress = addressStr;
+        if (addressStr.includes('||VITALS||')) {
+          const parts = addressStr.split('||VITALS||');
+          cleanAddress = parts[0].trim();
+          try {
+            const parsed = JSON.parse(parts[1]);
+            vitalsData = { ...vitalsData, ...parsed };
+          } catch (e) {}
+        }
+
         setFormData({
-          full_name: res.data.full_name || '',
-          email: res.data.email || '',
-          phone_number: res.data.phone_number || '',
-          specialization: res.data.specialization || '',
-          consultation_fee: res.data.consultation_fee || '',
-          availability: res.data.availability || '',
-          address: res.data.address || '',
-          dob: res.data.dob ? res.data.dob.split('T')[0] : '',
-          is_emergency: res.data.is_emergency || false
+          full_name: data.full_name || user?.fullName || '',
+          email: data.email || user?.email || '',
+          phone_number: data.phone_number || '',
+          dob: data.dob ? data.dob.split('T')[0] : '',
+          address: cleanAddress,
+          specialization: data.specialization || 'General Physician',
+          consultation_fee: data.consultation_fee || '500',
+          availability: data.availability || 'Mon - Fri: 09:00 AM - 05:00 PM',
+          is_emergency: Boolean(data.is_emergency),
+          blood_group: vitalsData.blood_group || 'O+',
+          blood_pressure: vitalsData.blood_pressure || '120/80',
+          heart_rate: vitalsData.heart_rate || '72',
+          allergies: vitalsData.allergies || 'None',
+          emergency_contact_name: vitalsData.emergency_contact_name || '',
+          emergency_contact_relation: vitalsData.emergency_contact_relation || 'Family',
+          emergency_contact_phone: vitalsData.emergency_contact_phone || ''
         });
-      } catch (err) { toast.error("Failed to load profile"); }
-      finally { setLoading(false); }
+      } catch (err) {
+        console.error('Fetch profile error:', err);
+        toast.error('Failed to load profile from Horizon Gateway.');
+      } finally {
+        setLoading(false);
+      }
     };
+
     if (user) fetchProfile();
   }, [user, backendUrl]);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
 
   const handleEmergencyToggle = () => {
     if (!formData.is_emergency) {
       setShowUndertaking(true);
     } else {
-      setFormData(prev => ({ ...prev, is_emergency: false }));
+      setFormData((prev) => ({ ...prev, is_emergency: false }));
     }
   };
 
   const confirmUndertaking = () => {
-    setFormData(prev => ({ ...prev, is_emergency: true }));
+    setFormData((prev) => ({ ...prev, is_emergency: true }));
     setShowUndertaking(false);
-    toast.success("Emergency Status Enabled");
-  };
-
-  const handleScheduleChange = (field, value) => {
-    const newSchedule = { ...schedule, [field]: value };
-    setSchedule(newSchedule);
-    const formatTime = (time) => {
-      if (!time) return "";
-      const [hour, minute] = time.split(':');
-      const h = parseInt(hour, 10);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      return `${h % 12 || 12}:${minute} ${ampm}`;
-    };
-    setFormData(prev => ({ ...prev, availability: `${newSchedule.startDay} - ${newSchedule.endDay}, ${formatTime(newSchedule.startTime)} - ${formatTime(newSchedule.endTime)}` }));
+    toast.success('Emergency Responder Status Confirmed');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+
     try {
-      const token = localStorage.getItem("token");
-      await axios.put(`${backendUrl}/api/users/profile`, formData, {
+      const token = localStorage.getItem('token');
+
+      // Pack vitals metadata into address payload for DB persistence
+      const vitalsObj = {
+        blood_group: formData.blood_group,
+        blood_pressure: formData.blood_pressure,
+        heart_rate: formData.heart_rate,
+        allergies: formData.allergies,
+        emergency_contact_name: formData.emergency_contact_name,
+        emergency_contact_relation: formData.emergency_contact_relation,
+        emergency_contact_phone: formData.emergency_contact_phone
+      };
+
+      // Cache locally
+      if (user?.id) {
+        localStorage.setItem(`patient_vitals_${user.id}`, JSON.stringify(vitalsObj));
+      }
+
+      const formattedAddress = formData.address
+        ? `${formData.address} ||VITALS|| ${JSON.stringify(vitalsObj)}`
+        : `Default Hub ||VITALS|| ${JSON.stringify(vitalsObj)}`;
+
+      const payload = {
+        full_name: formData.full_name,
+        phone_number: formData.phone_number,
+        dob: formData.dob || null,
+        address: formattedAddress,
+        specialization: formData.specialization,
+        consultation_fee: formData.consultation_fee,
+        availability: formData.availability,
+        is_emergency: formData.is_emergency
+      };
+
+      await axios.put(`${backendUrl}/api/users/profile`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success("Profile Updated");
-      updateUser({ full_name: formData.full_name, phone_number: formData.phone_number, is_emergency: formData.is_emergency });
-    } catch (err) { toast.error("Update Failed"); }
+
+      toast.success('UNESCO Horizon Profile Synchronized Successfully!');
+      updateUser({
+        full_name: formData.full_name,
+        phone_number: formData.phone_number,
+        is_emergency: formData.is_emergency
+      });
+    } catch (err) {
+      console.error('Update profile error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="relative w-12 h-12">
-          <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
+          <span className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">
+            Loading Horizon Identity...
+          </span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] py-8 px-4 transition-colors duration-500">
-      {/* Emergency Undertaking Modal */}
-      <Modal isOpen={showUndertaking} onClose={() => setShowUndertaking(false)} title="Emergency Service Undertaking" size="lg">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-red-500 rounded-xl text-white shadow-glow-red">
-            <FileText className="h-6 w-6" />
-          </div>
-          <div>
-            <h3 className="text-lg font-display font-bold text-[var(--text-primary)]">Declaration</h3>
-            <p className="text-xs text-[var(--text-muted)]">Please read carefully before enabling</p>
-          </div>
-        </div>
-        <div className="space-y-3 text-sm text-[var(--text-secondary)] leading-relaxed mb-8">
-          <p>I, <strong className="text-[var(--text-primary)]">{formData.full_name}</strong>, hereby declare:</p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>I consent to being listed as an <strong>Emergency-Ready Practitioner</strong>.</li>
-            <li>I will respond to emergency bookings within the <strong>10-minute window</strong>.</li>
-            <li>My "Active/Inactive" status will accurately reflect my availability.</li>
-            <li>Failure to respond will result in <strong>₹1,000 penalty</strong> and reliability score reduction.</li>
-            <li>Repeated violations may lead to platform suspension.</li>
-          </ul>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={() => setShowUndertaking(false)} className="flex-1 py-3 rounded-xl font-semibold glass border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]">Cancel</button>
-          <button onClick={confirmUndertaking} className="flex-1 py-3 rounded-xl font-semibold bg-red-500 text-white shadow-glow-red hover:bg-red-600">I Agree & Enable</button>
-        </div>
-      </Modal>
-
-      {/* Field Edit Modal */}
-      <Modal isOpen={!!activeField} onClose={() => setActiveField(null)} title={`Edit ${activeField?.label || ''}`} size="sm">
-        {activeField && (
-          <div>
-            <div className="relative mb-6">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-500">{activeField.icon}</div>
-              <input autoFocus type={activeField.type} name={activeField.name}
-                value={formData[activeField.name]} onChange={handleChange}
-                className="glass-input w-full pl-12 pr-4 text-lg" />
+    <div className="min-h-screen bg-[var(--bg-primary)] py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-500">
+      {/* Emergency Responder Undertaking Modal */}
+      <Modal
+        isOpen={showUndertaking}
+        onClose={() => setShowUndertaking(false)}
+        title="Emergency Responder Undertaking"
+        subtitle="UNESCO Horizon Care Quality & Response Charter"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-200/90 leading-relaxed">
+              By activating Emergency Response status, you consent to being listed in the priority triage directory and agree to enforce the 10-minute SLA response window.
             </div>
-            <button onClick={() => setActiveField(null)}
-              className="w-full py-3.5 rounded-xl font-semibold gradient-primary text-white shadow-glow-cyan">
-              Done
+          </div>
+
+          <div className="space-y-2 text-xs text-[var(--text-secondary)] font-mono bg-[var(--bg-tertiary)] p-3.5 rounded-xl border border-[var(--border-subtle)]">
+            <p>1. 10-Minute SLA acknowledgment on emergency dispatch.</p>
+            <p>2. Direct WebSocket audio/visual notification broadcast.</p>
+            <p>3. Automatic failure penalty of ₹1,000 for unexcused timeout.</p>
+            <p>4. Dynamic recalculation of clinician reliability score.</p>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowUndertaking(false)}
+              className="flex-1 py-2.5 rounded-xl text-xs font-bold glass border border-[var(--border-subtle)] text-[var(--text-secondary)]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmUndertaking}
+              className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-500 text-white shadow-glow-emergency flex items-center justify-center gap-1.5"
+            >
+              <Check className="h-4 w-4" />
+              I Agree & Activate
             </button>
           </div>
-        )}
+        </div>
       </Modal>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
-        <GlassCard hover={false} padding="none" className="overflow-hidden">
-          {/* Header */}
-          <div className="p-8 border-b border-[var(--border-primary)] flex items-center justify-between">
-            <div>
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest mb-3 glass border border-cyan-500/20 text-cyan-500">
-                {isDoctor ? 'Practitioner' : isPremium ? 'Premium' : 'Standard'} Account
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full glass border border-cyan-500/30 text-cyan-400">
+                Identity & Medical Vitals
               </span>
-              <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
-                {isDoctor ? 'Practice' : 'My'} <GradientText gradient="primary">Settings</GradientText>
-              </h1>
+              <Badge preset={isDoctor ? 'doctor' : 'patient'} />
             </div>
-            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center text-white shadow-glow-cyan">
-              <User className="h-7 w-7" />
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-[var(--text-primary)]">
+              {isDoctor ? 'Specialist Clinical Profile' : 'Personal Health & Vitals Registry'}
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+              Manage your personal credentials, vital telemetry, and emergency contacts under UNESCO security protocols.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-8">
-            {/* Emergency Toggle (Doctor Only) */}
-            {isDoctor && (
-              <div className={`p-5 rounded-2xl border transition-all flex items-center justify-between ${
-                formData.is_emergency ? 'bg-red-500/5 border-red-500/30 shadow-glow-red' : 'bg-[var(--bg-tertiary)] border-[var(--border-subtle)]'
-              }`}>
-                <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-xl transition-all ${formData.is_emergency ? 'bg-red-500 text-white shadow-glow-red' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>
+          <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center text-white shadow-glow-cyan text-lg font-display font-bold">
+            {formData.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Section 1: Basic Identity & Contact Information */}
+          <GlassCard padding="lg" className="space-y-5">
+            <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-subtle)]">
+              <User className="h-4 w-4 text-cyan-400" />
+              <h3 className="font-display font-bold text-sm text-[var(--text-primary)]">
+                General Identity & Contact
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    name="full_name"
+                    value={formData.full_name}
+                    onChange={handleChange}
+                    required
+                    className="glass-input w-full pl-10 pr-3 text-sm py-2.5"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Email Address (Read-only)
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="email"
+                    value={formData.email}
+                    disabled
+                    className="glass-input w-full pl-10 pr-3 text-sm py-2.5 opacity-60 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    placeholder="+1 (555) 000-0000"
+                    className="glass-input w-full pl-10 pr-3 text-sm py-2.5"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Date of Birth
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="date"
+                    name="dob"
+                    value={formData.dob}
+                    onChange={handleChange}
+                    className="glass-input w-full pl-10 pr-3 text-sm py-2.5"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Residential Address / Global Location
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="e.g. Geneva Global Medical Hub, Suite 402, Switzerland"
+                    className="glass-input w-full pl-10 pr-3 text-sm py-2.5"
+                  />
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Section 2: Personal Vitals & Emergency Contacts (Patient View) */}
+          {isPatient && (
+            <GlassCard padding="lg" className="space-y-5">
+              <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-subtle)]">
+                <Heart className="h-4 w-4 text-rose-400" />
+                <h3 className="font-display font-bold text-sm text-[var(--text-primary)]">
+                  Clinical Vitals & Emergency Contact Hotline
+                </h3>
+              </div>
+
+              {/* Vitals Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1">
+                    <Droplets className="h-3 w-3 text-rose-400" /> Blood Group
+                  </label>
+                  <select
+                    name="blood_group"
+                    value={formData.blood_group}
+                    onChange={handleChange}
+                    className="glass-input w-full text-sm py-2.5 px-3 cursor-pointer appearance-none bg-[var(--bg-secondary)]"
+                  >
+                    {BLOOD_GROUPS.map((bg) => (
+                      <option key={bg} value={bg} className="bg-[#0A0F24] text-white">
+                        {bg}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Blood Pressure
+                  </label>
+                  <input
+                    type="text"
+                    name="blood_pressure"
+                    value={formData.blood_pressure}
+                    onChange={handleChange}
+                    placeholder="120/80 mmHg"
+                    className="glass-input w-full text-sm py-2.5 px-3"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Resting Heart Rate
+                  </label>
+                  <input
+                    type="text"
+                    name="heart_rate"
+                    value={formData.heart_rate}
+                    onChange={handleChange}
+                    placeholder="72 bpm"
+                    className="glass-input w-full text-sm py-2.5 px-3"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Allergies / Flags
+                  </label>
+                  <input
+                    type="text"
+                    name="allergies"
+                    value={formData.allergies}
+                    onChange={handleChange}
+                    placeholder="e.g. Penicillin, Pollen"
+                    className="glass-input w-full text-sm py-2.5 px-3"
+                  />
+                </div>
+              </div>
+
+              {/* Emergency Contacts */}
+              <div className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 block">
+                  Priority Emergency Contact
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      Contact Name
+                    </label>
+                    <input
+                      type="text"
+                      name="emergency_contact_name"
+                      value={formData.emergency_contact_name}
+                      onChange={handleChange}
+                      placeholder="e.g. John Doe"
+                      className="glass-input w-full text-sm py-2.5 px-3"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      Relationship
+                    </label>
+                    <input
+                      type="text"
+                      name="emergency_contact_relation"
+                      value={formData.emergency_contact_relation}
+                      onChange={handleChange}
+                      placeholder="e.g. Spouse / Brother"
+                      className="glass-input w-full text-sm py-2.5 px-3"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      Hotline Phone
+                    </label>
+                    <input
+                      type="tel"
+                      name="emergency_contact_phone"
+                      value={formData.emergency_contact_phone}
+                      onChange={handleChange}
+                      placeholder="+1 (555) 999-9999"
+                      className="glass-input w-full text-sm py-2.5 px-3"
+                    />
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          )}
+
+          {/* Section 3: Clinical Practice Settings (Doctor View) */}
+          {isDoctor && (
+            <GlassCard padding="lg" className="space-y-5">
+              <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-subtle)]">
+                <Stethoscope className="h-4 w-4 text-cyan-400" />
+                <h3 className="font-display font-bold text-sm text-[var(--text-primary)]">
+                  Clinical Practice & Honorarium
+                </h3>
+              </div>
+
+              {/* Emergency Status Switch */}
+              <div
+                className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+                  formData.is_emergency
+                    ? 'bg-rose-500/10 border-rose-500/30 shadow-glow-emergency'
+                    : 'bg-[var(--bg-tertiary)] border-[var(--border-subtle)]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      formData.is_emergency ? 'bg-rose-500 text-white' : 'glass text-[var(--text-muted)]'
+                    }`}
+                  >
                     <AlertCircle className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className={`font-bold text-sm ${formData.is_emergency ? 'text-red-500' : 'text-[var(--text-primary)]'}`}>Emergency Response</h3>
-                    <p className="text-xs text-[var(--text-muted)]">Appear in Priority Emergency list</p>
+                    <h4 className="font-bold text-sm text-[var(--text-primary)]">
+                      Emergency 10-Minute SLA Responder
+                    </h4>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Receive immediate audio/visual triage dispatches and telemetry requests.
+                    </p>
                   </div>
                 </div>
-                <button type="button" onClick={handleEmergencyToggle}
-                  className={`relative w-12 h-7 rounded-full transition-all duration-300 ${formData.is_emergency ? 'bg-red-500' : 'bg-[var(--bg-tertiary)] border border-[var(--border-primary)]'}`}>
-                  <div className={`absolute top-0.5 left-0.5 bg-white w-6 h-6 rounded-full transition-transform duration-300 shadow-md ${formData.is_emergency ? 'translate-x-5' : ''}`} />
+
+                <button
+                  type="button"
+                  onClick={handleEmergencyToggle}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${
+                    formData.is_emergency ? 'bg-rose-500' : 'bg-white/20'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                      formData.is_emergency ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}
+                  />
                 </button>
               </div>
-            )}
 
-            {/* Basic Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <ProfileField label="Full Name" name="full_name" icon={<User className="h-4 w-4" />} value={formData.full_name} onClick={() => setActiveField({ label: 'Full Name', name: 'full_name', icon: <User className="h-5 w-5" />, type: 'text' })} />
-              <ProfileField label="Email" name="email" icon={<Mail className="h-4 w-4" />} value={formData.email} readOnly />
-              <ProfileField label="Phone" name="phone_number" icon={<Phone className="h-4 w-4" />} value={formData.phone_number} onClick={() => setActiveField({ label: 'Phone', name: 'phone_number', icon: <Phone className="h-5 w-5" />, type: 'tel' })} />
-            </div>
-
-            <hr className="border-[var(--border-subtle)]" />
-
-            {/* Doctor Fields */}
-            {isDoctor && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] ml-1">Specialization</label>
-                    <div className="relative">
-                      <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-                      <select name="specialization" value={formData.specialization} onChange={handleChange}
-                        className="glass-input w-full pl-11 pr-10 appearance-none cursor-pointer">
-                        <option value="">Select Specialty</option>
-                        {["General Physician", "Cardiologist", "Dermatologist", "Neurologist", "Pediatrician", "Psychiatrist", "Orthopedic Surgeon", "Gynecologist", "Ophthalmologist"].map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] pointer-events-none" />
-                    </div>
-                  </div>
-                  <ProfileField label="Consultation Fee (₹)" name="consultation_fee" icon={<IndianRupee className="h-4 w-4" />} value={formData.consultation_fee} onClick={() => setActiveField({ label: 'Consultation Fee', name: 'consultation_fee', icon: <IndianRupee className="h-5 w-5" />, type: 'number' })} />
-                </div>
-
-                {/* Schedule Builder */}
-                <div className="p-5 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
-                  <label className="text-sm font-bold flex items-center gap-2 mb-4 text-cyan-500">
-                    <Clock className="h-4 w-4" /> Practice Hours Builder
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Primary Specialization
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {['startDay', 'endDay'].map(field => (
-                      <select key={field} value={schedule[field]} onChange={(e) => handleScheduleChange(field, e.target.value)} className="glass-input text-sm">
-                        {days.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    ))}
-                    <input type="time" value={schedule.startTime} onChange={(e) => handleScheduleChange('startTime', e.target.value)} className="glass-input text-sm" />
-                    <input type="time" value={schedule.endTime} onChange={(e) => handleScheduleChange('endTime', e.target.value)} className="glass-input text-sm" />
+                  <input
+                    type="text"
+                    name="specialization"
+                    value={formData.specialization}
+                    onChange={handleChange}
+                    className="glass-input w-full text-sm py-2.5 px-3"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Consultation Fee (INR ₹)
+                  </label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                    <input
+                      type="number"
+                      name="consultation_fee"
+                      value={formData.consultation_fee}
+                      onChange={handleChange}
+                      className="glass-input w-full pl-10 pr-3 text-sm py-2.5 font-mono"
+                    />
                   </div>
-                  <div className="mt-3 p-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider text-cyan-500 bg-cyan-500/5 border border-cyan-500/10">
-                    Preview: {formData.availability || "Not Configured"}
+                </div>
+
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Operating Schedule & Hours
+                  </label>
+                  <div className="relative">
+                    <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                    <input
+                      type="text"
+                      name="availability"
+                      value={formData.availability}
+                      onChange={handleChange}
+                      placeholder="Mon - Fri: 09:00 AM - 05:00 PM"
+                      className="glass-input w-full pl-10 pr-3 text-sm py-2.5"
+                    />
                   </div>
                 </div>
               </div>
-            )}
+            </GlassCard>
+          )}
 
-            {/* Patient Fields */}
-            {!isDoctor && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <ProfileField label="Date of Birth" name="dob" icon={<Calendar className="h-4 w-4" />} value={formData.dob} onClick={() => setActiveField({ label: 'Date of Birth', name: 'dob', icon: <Calendar className="h-5 w-5" />, type: 'date' })} />
-                <ProfileField label="Address" name="address" icon={<MapPin className="h-4 w-4" />} value={formData.address} onClick={() => setActiveField({ label: 'Address', name: 'address', icon: <MapPin className="h-5 w-5" />, type: 'text' })} />
-              </div>
-            )}
-
-            {/* Submit */}
-            <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} type="submit"
-              className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 gradient-primary text-white shadow-glow-cyan">
-              <Save className="h-5 w-5" /> Save Changes
-            </motion.button>
-          </form>
-        </GlassCard>
-      </motion.div>
+          {/* Submit Action */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider gradient-primary text-white shadow-glow-cyan hover:brightness-110 flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Synchronizing...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>Save Horizon Profile</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
-
-const ProfileField = ({ label, icon, value, readOnly, onClick }) => (
-  <div className="space-y-2">
-    <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] ml-1">{label}</label>
-    <div className={`relative ${!readOnly ? 'cursor-pointer group' : ''}`} onClick={!readOnly ? onClick : undefined}>
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors">{icon}</div>
-      <input value={value || ''} readOnly placeholder={`No ${label.toLowerCase()} set`}
-        className={`glass-input w-full pl-11 pr-4 pointer-events-none ${readOnly ? 'opacity-50' : ''}`} />
-    </div>
-  </div>
-);
 
 export default Profile;

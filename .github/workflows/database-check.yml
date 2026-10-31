@@ -1,0 +1,46 @@
+name: Database Schema Validation
+
+on:
+  push:
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/database.sql'
+      - 'workflows/scripts/migrate-database.sql'
+      - '.github/workflows/database-check.yml'
+  pull_request:
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/database.sql'
+
+jobs:
+  validate-schema:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: mediconnect_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Test Master Migration Script Execution
+        env:
+          PGPASSWORD: postgrespassword
+        run: |
+          psql -h localhost -U postgres -d mediconnect_test -f workflows/scripts/migrate-database.sql
+          echo "Schema migration executed successfully!"

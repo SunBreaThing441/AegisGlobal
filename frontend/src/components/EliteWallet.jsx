@@ -35,7 +35,7 @@ const EliteWallet = () => {
             <Wallet className="h-6 w-6 text-yellow-500" />
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em]">MediConnect Credits</span>
+            <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em]">AegisGlobal Credits</span>
             <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold mt-1">
               <Sparkles className="h-3 w-3" /> Secure
             </div>
