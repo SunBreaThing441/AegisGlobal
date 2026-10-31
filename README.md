@@ -2,7 +2,7 @@
 
 <img src="https://img.shields.io/badge/MediConnect-AI%20Healthcare%20OS-06b6d4?style=for-the-badge&logo=heart&logoColor=white" alt="MediConnect" />
 
-# 🏥 MediConnect — AI-Powered Healthcare Platform
+# 🏥 AegisGlobal — AI-Powered Healthcare Platform
 
 **The next-generation telemedicine OS built for the real world.**  
 *Emergency SOS · AI Diagnostics · Teleconsultation · Doctor Accountability · Premium Subscriptions*
